@@ -1,0 +1,75 @@
+<html>
+
+    <head>
+        <title>Dummy Game</title>
+        <meta charset="utf-8" />
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+        <script src="https://unpkg.com/vue-cookies@1.7.3/vue-cookies.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/jdenticon@3.0.1" async></script>
+    </head>
+
+    <body>
+
+        <div id="app">
+            <svg style="height: 3em; width: 3em;" v-bind:data-jdenticon-value="gameId"></svg>
+
+            <ul>
+                <li v-for="message in messages"
+                    v-bind:key="message.id"
+                    v-bind:message="message">
+                    [[ message.user ]]: [[ message.text ]]
+                </li>
+            </ul>
+
+            <input v-model="newMessage" />
+            <button v-on:click="buttonSendClicked">send</button>
+        </div>
+        
+        <script>
+            var websocket = null;
+
+            var vm = new Vue({
+                el: "#app",
+                delimiters: ["[[", "]]"],
+                data: {
+                    user: "",
+                    gameId: "",
+                    newMessage: "",
+                    messages: []
+                },
+                methods: {
+                    buttonSendClicked: function() {
+                        websocket.send(`{"text": "${this.newMessage}"}`);
+                        this.newMessage = "";
+                    }
+                },
+                created: function() {
+                    if (Vue.$cookies.isKey("user")) {
+                        this.user = user = Vue.$cookies.get("user");
+                    } else {
+                        window.location.href = `http://${window.location.host}`;
+                    }
+
+                    if (Vue.$cookies.isKey("gameId")) {
+                        this.gameId = gameId = Vue.$cookies.get("gameId");
+                    } else {
+                        window.location.href = `http://${window.location.host}`;
+                    }
+
+                    websocket = new WebSocket(`ws://${window.location.host}/game-socket`);
+                    websocket.onmessage = function(event) {
+                        var data = JSON.parse(event.data);
+                        if (data["user"] != undefined && data["text"] != undefined) {
+                            vm.messages.push(data);
+                        }
+                    };
+                    websocket.onopen = function(event) {
+                        websocket.send(`{"user": "${user}", "gameId": "${gameId}"}`);
+                    };
+                }
+            });
+        </script>
+
+    </body>
+
+</html>

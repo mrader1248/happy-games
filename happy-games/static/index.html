@@ -1,0 +1,207 @@
+<html>
+    <head>
+        <title>Happy Games</title>
+        <meta charset="utf-8" />
+
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+        <script src="https://unpkg.com/vue-cookies@1.7.3/vue-cookies.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/jdenticon@3.0.1" async></script>
+
+    </head>
+    <body>
+        <div id="app">
+
+            <div id="page-loading" v-if="page == 'loading'">
+            </div>
+            
+            <div id="page-login" v-if="page == 'login'">
+                username: 
+                <input v-model="user" />
+                <button v-on:click="buttonLoginClicked">login</button>
+            </div>
+
+            <div id="page-lobby" v-if="page == 'lobby'">
+                <p>
+                    Hi {{ user }}!
+                    <button v-on:click="buttonLogoutClicked">logout</button>
+                </p>
+
+                <engine-list v-bind:engines="engines" v-on:create-game="createGame">
+                </engine-list>
+
+                <game-list v-bind:games="games" v-on:join-game="joinGame">
+                </game-list>
+
+            </div>
+
+        </div>
+        
+        <script>
+            window.jdenticon_config = {
+                replaceMode: "observe"
+            };
+
+            function loadEngineList() {
+                axios.get(
+                    "../engine"
+                ).then(function(response) {
+                    if (response.data["status"] == "ok") {
+                        app.engines = response.data["result"]["engines"];
+                    } else {
+                        // TODO: error handling
+                        alert(response.data);
+                    }
+                }).catch(function(error) {
+                    console.log(error);
+                    alert("error (see log)");
+                });
+            }
+            function loadGameList() {
+                axios.get(
+                    "../game"
+                ).then(function(response) {
+                    console.log(response.data["result"]["games"]);
+                    if (response.data["status"] == "ok") {
+                        app.games = response.data["result"]["games"];
+                    } else {
+                        // TODO: error handling
+                        alert(response.data);
+                    }
+                }).catch(function(error) {
+                    console.log(error);
+                    alert("error (see log)");
+                });
+            }
+
+            Vue.component("engine-list", {
+                props: ["engines"],
+                template:
+                    `<ul>
+                        <engine-list-item
+                            v-for="engine in engines"
+                            v-bind:key="engine.name"
+                            v-bind:engine="engine"
+                            v-on:create-game="createGame">
+                        </engine-list-item>
+                    </ul>`,
+                methods: {
+                    createGame: function(event, engine) {
+                        this.$emit("create-game", event, engine);
+                    }
+                }
+            })
+
+            Vue.component("engine-list-item", {
+                props: ["engine"],
+                template: 
+                    `<li>
+                        {{ engine.title }}
+                        <button v-on:click='buttonCreateClicked'>create</button>
+                    </li>`,
+                methods: {
+                    buttonCreateClicked: function(event) {
+                        this.$emit("create-game", event, this.engine);
+                    }
+                }
+            });
+
+            Vue.component("game-list", {
+                props: ["games"],
+                template:
+                    `<ul>
+                        <game-list-item 
+                            v-for="game in games"
+                            v-bind:key="game.gameId"
+                            v-bind:game="game"
+                            v-on:join-game="joinGame">
+                        </game-list-item>
+                    </ul>`,
+                methods: {
+                    joinGame: function(event, game) {
+                        this.$emit("join-game", event, game);
+                    }
+                }
+            });
+
+            Vue.component("game-list-item", {
+                props: ["game"],
+                template:
+                    `<li>
+                        <svg style="height: 3em; width: 3em;" v-bind:data-jdenticon-value="game.gameId"></svg>
+                        {{ game.engine.title }}
+                        <button v-on:click="buttonJoinClicked">join</button>
+                    </li>`,
+                methods: {
+                    buttonJoinClicked: function(event) {
+                        this.$emit("join-game", event, this.game);
+                    }
+                }
+            })
+
+            var app = new Vue({
+                el: "#app",
+                data: {
+                    user: "",
+                    page: "loading",
+                    engines: [],
+                    games: []
+                },
+                methods: {
+                    buttonLoginClicked: function() {
+                        // TODO: do login stuff
+                        Vue.$cookies.set("user", this.user, 60*60*24);
+
+                        loadEngineList();
+                        loadGameList();
+                        this.page = "lobby";
+                    },
+                    buttonLogoutClicked: function() {
+                        this.user = "";
+                        Vue.$cookies.remove("user");
+                        this.page = "login";
+                    },
+                    createGame: function(event, engine) {
+                        var user = this.user;
+                        axios.post("../game", {
+                            "engine-name": engine.name,
+                            "user": user
+                        }).then(function(response) {
+                            if (response.data["status"] == "ok") {
+                                // var gameId = response.data["result"]["gameId"];
+                                // window.location.href = `../game-site?user=${user}&engineName=${engine.name}&gameId=${gameId}`;
+                                Vue.$cookies.set("gameId", response.data["result"]["gameId"], 60*60*24);
+                                window.location.href = `../${engine.name}/static/index.html`;
+                            } else {
+                                // TODO: error handling
+                                alert(response.data["result"]);
+                            }
+                        }).catch(function(error) {
+                            console.log(error);
+                            alert("error (see log)");
+                            // TODO: error handling
+                        });
+
+                    },
+                    joinGame: function(event, game) {
+                        //var gameId = game["gameId"];
+                        //window.location.href = `../game-site?user=${this.user}&engineName=${game.engine.name}&gameId=${gameId}`;
+                        Vue.$cookies.set("gameId", game["gameId"], 60*60*24);
+                        window.location.href = `../${game.engine.name}/static/index.html`;
+                    }
+                },
+                created: function() {
+                    if (Vue.$cookies.isKey("user")) {
+                        this.user = Vue.$cookies.get("user");
+                        loadEngineList();
+                        loadGameList();
+                        this.page = "lobby";
+                    } else {
+                        this.page = "login";
+                    }
+                }
+            });
+
+        </script>
+    </body>
+</html>

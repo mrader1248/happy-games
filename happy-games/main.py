@@ -6,7 +6,7 @@ from json import dumps as json_dumps
 from json import loads as json_loads
 from sanic import Sanic
 from sanic.log import logger
-from sanic.response import json
+from sanic.response import html, json
 from sanic.websocket import WebSocketProtocol
 
 
@@ -19,8 +19,11 @@ ENGINE_PACKAGES = {
     for name in os.listdir(ENGINE_DIR)
 }
 
+app.static("/", "static/index.html")
+app.static("/static", "static")
 for name in ENGINE_PACKAGES:
     app.static(f"/{name}/static", f"engines/{name}/static")
+
 
 game_and_engine_by_gameid = dict()
 games_by_user = dict()
@@ -30,13 +33,15 @@ games_by_user = dict()
 async def list_available_engines(request):
     return json({
         "status": "ok",
-        "result": [
-            {
-                "name": name,
-                "title": game.TITLE
-            }
-            for name, game in ENGINE_PACKAGES.items()
-        ]
+        "result": {
+            "engines": [
+                {
+                    "name": name,
+                    "title": game.TITLE
+                }
+                for name, game in ENGINE_PACKAGES.items()
+            ]
+        }
     })
 
 
@@ -44,6 +49,11 @@ async def list_available_engines(request):
 async def create_game(request):
 
     args = request.json
+    if args is None:
+        return json({
+            "status": "error",
+            "result": "no arguments supplied"
+        })
 
     user = args.get("user")
     if user is None:
@@ -81,7 +91,26 @@ async def create_game(request):
     return json({
         "status": "ok",
         "result": {
-            "game-id": str(game_id)
+            "gameId": str(game_id)
+        }
+    })
+
+
+@app.route("/game", methods=["GET"])
+async def list_games(request):
+    return json({
+        "status": "ok",
+        "result": {
+            "games": [
+                {
+                    "gameId": str(game_id),
+                    "engine": {
+                        "name": engine.NAME,
+                        "title": engine.TITLE
+                    }
+                }
+                for game_id, (game, engine) in game_and_engine_by_gameid.items()
+            ]
         }
     })
 
@@ -98,7 +127,7 @@ async def game_socket(request, websocket):
             }))
             return
 
-        game_id = game_request.get("game-id")
+        game_id = game_request.get("gameId")
         if game_id is None:
             await websocket.send(json_dumps({
                 "status": "error"

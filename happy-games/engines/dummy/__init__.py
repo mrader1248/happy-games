@@ -1,8 +1,10 @@
 import asyncio
 import json
+import uuid
 from sanic.log import logger
 
 
+NAME = "dummy"
 TITLE = "Dummy Game"
 
 
@@ -35,6 +37,7 @@ class WebsocketPlayer:
     def __init__(self, user, game):
         self._user = user
         self._game = game
+        self._websocket = None
 
     async def run(self, websocket):
         self._websocket = websocket
@@ -43,10 +46,11 @@ class WebsocketPlayer:
                 data = await websocket.recv()
                 # TODO: check if data = {"message": "..."}
                 data = json.loads(data)
-                self._game.broadcast({"message": data["message"], "user": self._user})
+                self._game.broadcast({"id": str(uuid.uuid4()), "text": data["text"], "user": self._user})
         except asyncio.CancelledError as ex:
             self._websocket = None
             logger.info(f"WebsocketPlayer {self._user} client closed websocket connection")
     
     def notify(self, message):
-        asyncio.create_task(self._websocket.send(json.dumps(message)))
+        if self._websocket is not None:
+            asyncio.create_task(self._websocket.send(json.dumps(message)))
