@@ -59,7 +59,12 @@
                     websocket = new WebSocket(`ws://${window.location.host}/game-socket`);
                     websocket.onmessage = function(event) {
                         var data = JSON.parse(event.data);
-                        if (data["user"] != undefined && data["text"] != undefined) {
+                        if (data.connectResponse?.status == "error") {
+                            Vue.$cookies.remove("gameId");
+                            Vue.$cookies.remove("engineName");
+                            window.location.href = `http://${window.location.host}`;
+                        }
+                        if (data.user != undefined && data.text != undefined) {
                             vm.messages.push(data);
                         }
                     };

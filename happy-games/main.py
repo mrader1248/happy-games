@@ -61,6 +61,12 @@ async def create_game(request):
             "status": "error",
             "result": "no user supplied"
         })
+    
+    if user in games_by_user:
+        return json({
+            "status": "error",
+            "result": f"user already joined a game"
+        })
 
     engine_name = args.get("engine-name")
     if engine_name is None:
@@ -123,14 +129,18 @@ async def game_socket(request, websocket):
         user = game_request.get("user")
         if user is None:
             await websocket.send(json_dumps({
-                "status": "error"
+                "connectResponse": {
+                    "status": "error"
+                }
             }))
             return
 
         game_id = game_request.get("gameId")
         if game_id is None:
             await websocket.send(json_dumps({
-                "status": "error"
+                "connectResponse": {
+                    "status": "error"
+                }
             }))
             return
         
@@ -138,26 +148,42 @@ async def game_socket(request, websocket):
         game_and_engine = game_and_engine_by_gameid.get(game_id)
         if game_and_engine is None:
             await websocket.send(json_dumps({
-                "status": "error",
-                "message": "invalid game id"
+                "connectResponse": {
+                    "status": "error",
+                    "message": "invalid game id"
+                }
             }))
             return
         game, engine = game_and_engine
+
+        game2 = games_by_user.get(user)
+        if game2 is not None and game2 != game:
+            await websocket.send(json_dumps({
+                "connectResponse": {
+                    "status": "error",
+                    "message": "user already joined another game"
+                }
+            }))
+            return
 
         player = game.get_player(user)
         if player is None:
             player = engine.WebsocketPlayer(user, game)
             if not await game.add_player(user, player):
                 await websocket.send(json_dumps({
-                    "status": "error",
-                    "message": "could not join game"
+                    "connectResponse": {
+                        "status": "error",
+                        "message": "could not join game"
+                    }
                 }))
                 return
             logger.info(f"user {user} joined game {game_id}")
         logger.info(f"user {user} connected to game")
         
         asyncio.create_task(websocket.send(json_dumps({
-            "status": "ok"
+            "connectResponse": {
+                "status": "ok"
+            }
         })))
         await player.run(websocket)
 

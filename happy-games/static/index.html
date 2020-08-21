@@ -168,9 +168,8 @@
                             "user": user
                         }).then(function(response) {
                             if (response.data["status"] == "ok") {
-                                // var gameId = response.data["result"]["gameId"];
-                                // window.location.href = `../game-site?user=${user}&engineName=${engine.name}&gameId=${gameId}`;
                                 Vue.$cookies.set("gameId", response.data["result"]["gameId"], 60*60*24);
+                                Vue.$cookies.set("engineName", engine.name, 60*60*24);
                                 window.location.href = `../${engine.name}/static/index.html`;
                             } else {
                                 // TODO: error handling
@@ -184,15 +183,21 @@
 
                     },
                     joinGame: function(event, game) {
-                        //var gameId = game["gameId"];
-                        //window.location.href = `../game-site?user=${this.user}&engineName=${game.engine.name}&gameId=${gameId}`;
                         Vue.$cookies.set("gameId", game["gameId"], 60*60*24);
+                        Vue.$cookies.set("engineName", game.engine.name, 60*60*24);
                         window.location.href = `../${game.engine.name}/static/index.html`;
                     }
                 },
                 created: function() {
                     if (Vue.$cookies.isKey("user")) {
                         this.user = Vue.$cookies.get("user");
+
+                        if (Vue.$cookies.isKey("gameId")) {
+                            this.gameId = Vue.$cookies.get("gameId");
+                            var engineName = Vue.$cookies.get("engineName");
+                            window.location.href = `../${engineName}/static/index.html`;
+                        }
+
                         loadEngineList();
                         loadGameList();
                         this.page = "lobby";
