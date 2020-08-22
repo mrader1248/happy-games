@@ -61,7 +61,6 @@
                 axios.get(
                     "../game"
                 ).then(function(response) {
-                    console.log(response.data["result"]["games"]);
                     if (response.data["status"] == "ok") {
                         app.games = response.data["result"]["games"];
                     } else {

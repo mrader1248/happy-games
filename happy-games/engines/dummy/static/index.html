@@ -39,7 +39,7 @@
                 },
                 methods: {
                     buttonSendClicked: function() {
-                        websocket.send(`{"text": "${this.newMessage}"}`);
+                        websocket.send(`{"message": {"text": "${this.newMessage}"}}`);
                         this.newMessage = "";
                     }
                 },

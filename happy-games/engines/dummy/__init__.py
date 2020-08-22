@@ -13,6 +13,8 @@ class Game:
         self._players = dict()
         self._lock_add_player = asyncio.Lock()
         self._max_players = 4
+        self._message_history = []
+        self._max_history_messages = 100
 
     async def add_player(self, name, player):
         async with self._lock_add_player:
@@ -29,8 +31,14 @@ class Game:
         return self._players.get(name)
 
     def broadcast(self, message):
+        self._message_history.append(message)
+        print(f"broadcast, {len(self._message_history)}")
         for name, player in self._players.items():
             player.notify(message)
+    
+    def resend_history(self, player):
+        for message in self._message_history[-self._max_history_messages:]:
+            player.notify(message, historical=True)
 
 
 class WebsocketPlayer:
@@ -38,19 +46,36 @@ class WebsocketPlayer:
         self._user = user
         self._game = game
         self._websocket = None
+        self._send_new_messages = None
 
     async def run(self, websocket):
+        self._send_new_messages = False
         self._websocket = websocket
+        self._game.resend_history(self)
+        self._send_new_messages = True
         try:
             while True:
                 data = await websocket.recv()
-                # TODO: check if data = {"message": "..."}
-                data = json.loads(data)
-                self._game.broadcast({"id": str(uuid.uuid4()), "text": data["text"], "user": self._user})
+
+                try:
+                    data = json.loads(data)
+                except json.JSONDecodeError:
+                    logger.error(f"unable to JSON-decode '{data}'")
+                    continue
+
+                message = data.get("message")
+                if message is not None:
+                    self._game.broadcast({
+                        "id": str(uuid.uuid4()), 
+                        "text": message["text"], 
+                        "user": self._user
+                    })
+
         except asyncio.CancelledError as ex:
             self._websocket = None
             logger.info(f"WebsocketPlayer {self._user} client closed websocket connection")
     
-    def notify(self, message):
+    def notify(self, message, historical=False):
         if self._websocket is not None:
-            asyncio.create_task(self._websocket.send(json.dumps(message)))
+            if historical or self._send_new_messages:
+                asyncio.create_task(self._websocket.send(json.dumps(message)))
