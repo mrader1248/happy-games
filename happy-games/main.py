@@ -82,7 +82,8 @@ async def create_game(request):
             "result": f"unknown game '{engine_name}'"
         })
 
-    game = engine.Game()
+    game_id = uuid.uuid4()
+    game = engine.Game(game_id)
     player = engine.WebsocketPlayer(user, game)
     if not await game.add_player(user, player):
         return json({
@@ -90,7 +91,6 @@ async def create_game(request):
             "result": f"internal error"
         })
 
-    game_id = uuid.uuid4()
     game_and_engine_by_gameid[game_id] = (game, engine)
     games_by_user[user] = game
 
@@ -185,7 +185,13 @@ async def game_socket(request, websocket):
                 "status": "ok"
             }
         })))
-        await player.run(websocket)
+
+        if await player.run(websocket):
+            await game.remove_player(user)
+            games_by_user.pop(user)
+            if game.num_players == 0:
+                game_and_engine_by_gameid.pop(game_id)
+                
 
     except asyncio.CancelledError as ex:
         print("websocket connection closed by client")

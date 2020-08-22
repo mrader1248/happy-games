@@ -13,6 +13,8 @@
         <div id="app">
             <svg style="height: 3em; width: 3em;" v-bind:data-jdenticon-value="gameId"></svg>
 
+            <button v-on:click="leaveClicked">leave</button>
+
             <ul>
                 <li v-for="message in messages"
                     v-bind:key="message.id"
@@ -44,6 +46,12 @@
                             this.newMessage = "";
                         }
                         this.$refs.input.focus();
+                    },
+                    leaveClicked: function() {
+                        websocket.send(`{"action": {"todo": "disconnect"}}`);
+                        Vue.$cookies.remove("gameId");
+                        Vue.$cookies.remove("engineName");
+                        window.location.href = `http://${window.location.host}`;
                     }
                 },
                 created: function() {
@@ -63,6 +71,7 @@
                     websocket.onmessage = function(event) {
                         var data = JSON.parse(event.data);
                         if (data.connectResponse?.status == "error") {
+                            alert(`cannot connect to game ${data.connectResponse.message}`);
                             Vue.$cookies.remove("gameId");
                             Vue.$cookies.remove("engineName");
                             window.location.href = `http://${window.location.host}`;
