@@ -21,7 +21,7 @@
                 </li>
             </ul>
 
-            <input v-model="newMessage" />
+            <input v-model="newMessage" @keyup.enter="buttonSendClicked" />
             <button v-on:click="buttonSendClicked">send</button>
         </div>
         
