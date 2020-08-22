@@ -21,7 +21,7 @@
                 </li>
             </ul>
 
-            <input v-model="newMessage" @keyup.enter="buttonSendClicked" />
+            <input ref="input" v-model="newMessage" @keyup.enter="buttonSendClicked" />
             <button v-on:click="buttonSendClicked">send</button>
         </div>
         
@@ -39,8 +39,11 @@
                 },
                 methods: {
                     buttonSendClicked: function() {
-                        websocket.send(`{"message": {"text": "${this.newMessage}"}}`);
-                        this.newMessage = "";
+                        if (this.newMessage != "") {
+                            websocket.send(`{"message": {"text": "${this.newMessage}"}}`);
+                            this.newMessage = "";
+                        }
+                        this.$refs.input.focus();
                     }
                 },
                 created: function() {

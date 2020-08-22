@@ -65,11 +65,13 @@ class WebsocketPlayer:
 
                 message = data.get("message")
                 if message is not None:
-                    self._game.broadcast({
-                        "id": str(uuid.uuid4()), 
-                        "text": message["text"], 
-                        "user": self._user
-                    })
+                    text = message.get("text")
+                    if text is not None and text != "":
+                        self._game.broadcast({
+                            "id": str(uuid.uuid4()), 
+                            "text": message["text"], 
+                            "user": self._user
+                        })
 
         except asyncio.CancelledError as ex:
             self._websocket = None
